@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Update Geral - Cálculo de Rendimento CDI</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -44,8 +45,29 @@
       background-color: #ecf0f1;
       border-left: 5px solid #2980b9;
     }
+    table {
+      margin-top: 15px;
+      width: 100%;
+      border-collapse: collapse;
+      background-color: white;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #2980b9;
+      color: white;
+    }
     #grafico-container {
       margin-top: 40px;
+    }
+    #exportarPDF {
+      background-color: #27ae60;
+    }
+    #exportarPDF:hover {
+      background-color: #2ecc71;
     }
   </style>
 </head>
@@ -66,6 +88,7 @@
   <input type="number" id="dias" placeholder="Ex: 180">
 
   <button onclick="calcularRendimento()">Calcular</button>
+  <button id="exportarPDF" onclick="exportarPDF()">Exportar Resultado em PDF</button>
 
   <div class="resultado" id="resultado"></div>
 
@@ -89,15 +112,42 @@
 
       const cdiEfetivo = (cdiAnual / 100) * (percentualCDI / 100);
       const rendimentoFinal = valor * Math.pow(1 + (cdiEfetivo / 252), dias);
-      const lucro = rendimentoFinal - valor;
+      const lucroBruto = rendimentoFinal - valor;
 
-      document.getElementById('resultado').innerHTML = `
-        <strong>Resultado:</strong><br>
-        Valor final: R$ ${rendimentoFinal.toFixed(2)}<br>
-        Lucro: R$ ${lucro.toFixed(2)}
+      let aliquota;
+      let faixa;
+      if (dias <= 180) {
+        aliquota = 0.225;
+        faixa = "Até 180 dias";
+      } else if (dias <= 360) {
+        aliquota = 0.20;
+        faixa = "De 181 a 360 dias";
+      } else if (dias <= 720) {
+        aliquota = 0.175;
+        faixa = "De 361 a 720 dias";
+      } else {
+        aliquota = 0.15;
+        faixa = "Acima de 720 dias";
+      }
+
+      const imposto = lucroBruto * aliquota;
+      const lucroLiquido = lucroBruto - imposto;
+
+      const tabelaHTML = `
+        <strong>Resultado:</strong>
+        <table id="tabelaResultado">
+          <tr><th>Descrição</th><th>Valor</th></tr>
+          <tr><td>Valor final</td><td>R$ ${rendimentoFinal.toFixed(2)}</td></tr>
+          <tr><td>Lucro bruto</td><td>R$ ${lucroBruto.toFixed(2)}</td></tr>
+          <tr><td>Faixa de IR</td><td>${faixa}</td></tr>
+          <tr><td>Alíquota de IR</td><td>${(aliquota * 100).toFixed(1)}%</td></tr>
+          <tr><td>Valor do IR</td><td>R$ ${imposto.toFixed(2)}</td></tr>
+          <tr><th>Lucro líquido</th><th>R$ ${lucroLiquido.toFixed(2)}</th></tr>
+        </table>
       `;
 
-      // Gerar dados para o gráfico
+      document.getElementById('resultado').innerHTML = tabelaHTML;
+
       let valores = [];
       let labels = [];
       for (let i = 0; i <= dias; i++) {
@@ -136,6 +186,30 @@
           }
         }
       });
+    }
+
+    async function exportarPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      doc.text("Resultado do Investimento", 10, 10);
+
+      const resultadoHTML = document.getElementById("tabelaResultado");
+      if (resultadoHTML) {
+        const tabelaTexto = resultadoHTML.innerText.split("\n");
+        let y = 20;
+        for (const linha of tabelaTexto) {
+          doc.text(linha, 10, y);
+          y += 7;
+        }
+      }
+
+      const canvas = document.getElementById("graficoRendimento");
+      const imgData = canvas.toDataURL("image/png");
+      doc.addPage();
+      doc.addImage(imgData, "PNG", 10, 20, 180, 100);
+
+      doc.save("resultado-investimento.pdf");
     }
   </script>
 </body>
