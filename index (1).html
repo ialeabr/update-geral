@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Update Geral - Cálculo de Rendimento CDI</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    label {
+      display: block;
+      margin: 15px 0 5px;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 10px;
+      background-color: #2980b9;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #3498db;
+    }
+    .resultado {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #ecf0f1;
+      border-left: 5px solid #2980b9;
+    }
+    #grafico-container {
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Update Geral</h1>
+  <p>Calculadora de Rendimento de Investimento atrelado ao CDI</p>
+
+  <label for="valor">Valor investido (R$):</label>
+  <input type="number" id="valor" placeholder="Ex: 10000">
+
+  <label for="cdi">Taxa CDI anual (%):</label>
+  <input type="number" id="cdi" step="0.01" placeholder="Ex: 10.65">
+
+  <label for="percentual">Percentual do CDI (%):</label>
+  <input type="number" id="percentual" placeholder="Ex: 110">
+
+  <label for="dias">Prazo (em dias úteis):</label>
+  <input type="number" id="dias" placeholder="Ex: 180">
+
+  <button onclick="calcularRendimento()">Calcular</button>
+
+  <div class="resultado" id="resultado"></div>
+
+  <div id="grafico-container">
+    <canvas id="graficoRendimento" width="400" height="200"></canvas>
+  </div>
+
+  <script>
+    let grafico;
+
+    function calcularRendimento() {
+      const valor = parseFloat(document.getElementById('valor').value);
+      const cdiAnual = parseFloat(document.getElementById('cdi').value);
+      const percentualCDI = parseFloat(document.getElementById('percentual').value);
+      const dias = parseInt(document.getElementById('dias').value);
+
+      if (isNaN(valor) || isNaN(cdiAnual) || isNaN(percentualCDI) || isNaN(dias)) {
+        document.getElementById('resultado').innerText = "Por favor, preencha todos os campos corretamente.";
+        return;
+      }
+
+      const cdiEfetivo = (cdiAnual / 100) * (percentualCDI / 100);
+      const rendimentoFinal = valor * Math.pow(1 + (cdiEfetivo / 252), dias);
+      const lucroBruto = rendimentoFinal - valor;
+
+      let aliquota;
+      if (dias <= 180) {
+        aliquota = 0.225;
+      } else if (dias <= 360) {
+        aliquota = 0.20;
+      } else if (dias <= 720) {
+        aliquota = 0.175;
+      } else {
+        aliquota = 0.15;
+      }
+
+      const imposto = lucroBruto * aliquota;
+      const lucroLiquido = lucroBruto - imposto;
+
+      document.getElementById('resultado').innerHTML = `
+        <strong>Resultado:</strong><br>
+        Valor final: R$ ${rendimentoFinal.toFixed(2)}<br>
+        Lucro bruto: R$ ${lucroBruto.toFixed(2)}<br>
+        IR (${(aliquota * 100).toFixed(1)}%): R$ ${imposto.toFixed(2)}<br>
+        <strong>Lucro líquido: R$ ${lucroLiquido.toFixed(2)}</strong>
+      `;
+
+      let valores = [];
+      let labels = [];
+      for (let i = 0; i <= dias; i++) {
+        const valorDia = valor * Math.pow(1 + (cdiEfetivo / 252), i);
+        valores.push(valorDia.toFixed(2));
+        labels.push(`Dia ${i}`);
+      }
+
+      if (grafico) grafico.destroy();
+
+      const ctx = document.getElementById('graficoRendimento').getContext('2d');
+      grafico = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Evolução do Investimento',
+            data: valores,
+            borderColor: '#2980b9',
+            backgroundColor: 'rgba(41, 128, 185, 0.2)',
+            tension: 0.2,
+            fill: true,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: true
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: false
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
